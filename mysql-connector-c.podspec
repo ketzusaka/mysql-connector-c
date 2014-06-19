@@ -21,4 +21,5 @@ Pod::Spec.new do |s|
   s.source_files  = "Sources/include/**/*.{h}"
   s.vendored_libraries = "Sources/libmysqlclient.a"
   s.library   = "c++"
+  s.requires_arc = false
 end
