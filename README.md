@@ -13,3 +13,9 @@ pod ‘mysql-connector-c’, ‘~> 1.0’
 ```
 
 You can also copy the files from the Sources directory into your project if you’re not using Cocoapods.
+
+## Sample Project
+
+Under Project Files there is a sample project demonstrating the libraries use. Most of the details you'll want are on the MySQL documenation site, though. 
+
+The sample project simply lists the tables within a database. Update the #define statements at the top of ViewController.m to point to a database you have access to in order to see the results.
