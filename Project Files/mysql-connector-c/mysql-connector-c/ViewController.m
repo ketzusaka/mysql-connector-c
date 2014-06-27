@@ -32,7 +32,9 @@
         if (connection) {
             [self buildTableList];
         } else {
-            [[[UIAlertView alloc] initWithTitle:@"Error" message:@"Unable to connect to MySQL" delegate:nil cancelButtonTitle:@"Okay" otherButtonTitles:nil] show];
+            dispatch_async(dispatch_get_main_queue(), ^ {
+                [[[UIAlertView alloc] initWithTitle:@"Error" message:@"Unable to connect to MySQL" delegate:nil cancelButtonTitle:@"Okay" otherButtonTitles:nil] show];
+            });
         }
     });
 }
