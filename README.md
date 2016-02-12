@@ -6,13 +6,13 @@ You can read all about the C api provided at [the MySQL documentation site](http
 
 ## Installation
 
-mysql-connector-c can be installed using Cocoapods. Add the following declaration into your Podfile:
+mysql-connector-c can be installed using CocoaPods. Add the following declaration into your Podfile:
 
 ```ruby
 pod ‘mysql-connector-c’, ‘~> 1.0’
 ```
 
-You can also copy the files from the Sources directory into your project if you’re not using Cocoapods.
+You can also copy the files from the Sources directory into your project if you’re not using CocoaPods.
 
 ## Sample Project
 
