@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _tree_h
 #define _tree_h
@@ -20,6 +20,7 @@ extern "C" {
 #endif
 
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
+#include "my_alloc.h"           /* MEM_ROOT */
 
 /* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
 #define MAX_TREE_HEIGHT	64
@@ -37,7 +38,7 @@ typedef uint32 element_count;
 typedef int (*tree_walk_action)(void *,element_count,void *);
 
 typedef enum { free_init, free_free, free_end } TREE_FREE;
-typedef void (*tree_element_free)(void*, TREE_FREE, void *);
+typedef void (*tree_element_free)(void*, TREE_FREE, const void *);
 
 typedef struct st_tree_element {
   struct st_tree_element *left,*right;
@@ -53,7 +54,7 @@ typedef struct st_tree {
   uint offset_to_key,elements_in_tree,size_of_element;
   ulong memory_limit, allocated;
   qsort_cmp2 compare;
-  void *custom_arg;
+  const void *custom_arg;
   MEM_ROOT mem_root;
   my_bool with_delete;
   tree_element_free free;
@@ -63,30 +64,30 @@ typedef struct st_tree {
 	/* Functions on whole tree */
 void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
                int size, qsort_cmp2 compare, my_bool with_delete,
-	       tree_element_free free_element, void *custom_arg);
+	       tree_element_free free_element, const void *custom_arg);
 void delete_tree(TREE*);
 void reset_tree(TREE*);
-
-  /* similar to delete tree, except we do not my_free() blocks in mem_root */
+  /* similar to delete tree, except we do not my_free() blocks in mem_root
+   */
 #define is_tree_inited(tree) ((tree)->root != 0)
 
 	/* Functions on leafs */
 TREE_ELEMENT *tree_insert(TREE *tree,void *key, uint key_size, 
-                          void *custom_arg);
-void *tree_search(TREE *tree, void *key, void *custom_arg);
+                          const void *custom_arg);
+void *tree_search(TREE *tree, void *key, const void *custom_arg);
 int tree_walk(TREE *tree,tree_walk_action action,
 	      void *argument, TREE_WALK visit);
-int tree_delete(TREE *tree, void *key, uint key_size, void *custom_arg);
+int tree_delete(TREE *tree, void *key, uint key_size, const void *custom_arg);
 void *tree_search_key(TREE *tree, const void *key, 
                       TREE_ELEMENT **parents, TREE_ELEMENT ***last_pos,
-                      enum ha_rkey_function flag, void *custom_arg);
+                      enum ha_rkey_function flag, const void *custom_arg);
 void *tree_search_edge(TREE *tree, TREE_ELEMENT **parents, 
                         TREE_ELEMENT ***last_pos, int child_offs);
 void *tree_search_next(TREE *tree, TREE_ELEMENT ***last_pos, int l_offs, 
                        int r_offs);
 ha_rows tree_record_pos(TREE *tree, const void *key, 
-                     enum ha_rkey_function search_flag, void *custom_arg);
-#define reset_free_element(tree) (tree)->free= 0
+                        enum ha_rkey_function search_flag,
+                        const void *custom_arg);
 
 #define TREE_ELEMENT_EXTRA_SIZE (sizeof(TREE_ELEMENT) + sizeof(void*))
 

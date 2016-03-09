@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2005 MySQL AB
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This is a private header of sql-common library, containing
@@ -27,6 +27,7 @@ C_MODE_START
 
 extern ulonglong log_10_int[20];
 extern uchar days_in_month[];
+extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
 
 /*
   Portable time_t replacement.
@@ -35,13 +36,13 @@ extern uchar days_in_month[];
 
   Using the system built in time_t is not an option as
   we rely on the above requirements in the time functions
-
-  For example QNX has an unsigned time_t type
 */
 typedef long my_time_t;
 
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN
+
+#define DATETIME_MAX_DECIMALS 6
 
 /* Time handling defaults */
 #define TIMESTAMP_MAX_YEAR 2038
@@ -52,17 +53,39 @@ typedef long my_time_t;
 /* two-digit years < this are 20..; >= this are 19.. */
 #define YY_PART_YEAR	   70
 
-/* Flags to str_to_datetime */
-#define TIME_FUZZY_DATE		1
-#define TIME_DATETIME_ONLY	2
-/* Must be same as MODE_NO_ZERO_IN_DATE */
-#define TIME_NO_ZERO_IN_DATE    (65536L*2*2*2*2*2*2*2)
-/* Must be same as MODE_NO_ZERO_DATE */
-#define TIME_NO_ZERO_DATE	(TIME_NO_ZERO_IN_DATE*2)
-#define TIME_INVALID_DATES	(TIME_NO_ZERO_DATE*2)
+/*
+  check for valid times only if the range of time_t is greater than
+  the range of my_time_t
+*/
+#if SIZEOF_TIME_T > 4
+# define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
+    ((x) <= TIMESTAMP_MAX_VALUE && \
+     (x) >= TIMESTAMP_MIN_VALUE)
+#else
+# define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
+    ((x) >= TIMESTAMP_MIN_VALUE)
+#endif
 
-#define MYSQL_TIME_WARN_TRUNCATED    1
-#define MYSQL_TIME_WARN_OUT_OF_RANGE 2
+/* Flags to str_to_datetime and number_to_datetime */
+typedef uint my_time_flags_t;
+static const my_time_flags_t TIME_FUZZY_DATE=         1;
+static const my_time_flags_t TIME_DATETIME_ONLY=      2;
+static const my_time_flags_t TIME_NO_NSEC_ROUNDING=   4;
+static const my_time_flags_t TIME_NO_DATE_FRAC_WARN=  8;
+static const my_time_flags_t TIME_NO_ZERO_IN_DATE=   16;
+static const my_time_flags_t TIME_NO_ZERO_DATE=      32;
+static const my_time_flags_t TIME_INVALID_DATES=     64;
+
+/* Conversion warnings */
+#define MYSQL_TIME_WARN_TRUNCATED         1
+#define MYSQL_TIME_WARN_OUT_OF_RANGE      2
+#define MYSQL_TIME_WARN_INVALID_TIMESTAMP 4
+#define MYSQL_TIME_WARN_ZERO_DATE         8
+#define MYSQL_TIME_NOTE_TRUNCATED        16
+#define MYSQL_TIME_WARN_ZERO_IN_DATE     32
+
+/* Usefull constants */
+#define SECONDS_IN_24H 86400L
 
 /* Limits for the TIME data type */
 #define TIME_MAX_HOUR 838
@@ -73,23 +96,71 @@ typedef long my_time_t;
 #define TIME_MAX_VALUE_SECONDS (TIME_MAX_HOUR * 3600L + \
                                 TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
+/*
+  Structure to return status from
+    str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
+*/
+typedef struct st_mysql_time_status
+{
+  int warnings;
+  uint fractional_digits;
+  uint nanoseconds;
+} MYSQL_TIME_STATUS;
+
+static inline void my_time_status_init(MYSQL_TIME_STATUS *status)
+{
+  status->warnings= status->fractional_digits= status->nanoseconds= 0;
+}
+
+
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   ulong flags, int *was_cut);
-enum enum_mysql_timestamp_type
-str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
-                uint flags, int *was_cut);
+                   my_time_flags_t flags, int *was_cut);
+my_bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
+                        my_time_flags_t flags, MYSQL_TIME_STATUS *status);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            uint flags, int *was_cut);
+                            my_time_flags_t flags, int *was_cut);
+my_bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong(const MYSQL_TIME *);
 
+#define MY_PACKED_TIME_GET_INT_PART(x)     ((x) >> 24)
+#define MY_PACKED_TIME_GET_FRAC_PART(x)    ((x) % (1LL << 24))
+#define MY_PACKED_TIME_MAKE(i, f)          ((((longlong) (i)) << 24) + (f))
+#define MY_PACKED_TIME_MAKE_INT(i)         ((((longlong) (i)) << 24))
 
-my_bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
-                    int *warning);
+longlong year_to_longlong_datetime_packed(long year);
+longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *);
+longlong TIME_to_longlong_date_packed(const MYSQL_TIME *);
+longlong TIME_to_longlong_time_packed(const MYSQL_TIME *);
+longlong TIME_to_longlong_packed(const MYSQL_TIME *);
 
-int check_time_range(struct st_mysql_time *, int *warning);
+void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong nr);
+void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong nr);
+void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong nr);
+void TIME_set_yymmdd(MYSQL_TIME *ltime, uint yymmdd);
+void TIME_set_hhmmss(MYSQL_TIME *ltime, uint hhmmss);
+
+void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec);
+longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec);
+uint my_datetime_binary_length(uint dec);
+
+void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec);
+longlong my_time_packed_from_binary(const uchar *ptr, uint dec);
+uint my_time_binary_length(uint dec);
+
+void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec);
+void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec);
+uint my_timestamp_binary_length(uint dec);
+
+my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
+                    MYSQL_TIME_STATUS *status);
+
+my_bool check_time_mmssff_range(const MYSQL_TIME *ltime);
+my_bool check_time_range_quick(const MYSQL_TIME *ltime);
+my_bool check_datetime_range(const MYSQL_TIME *ltime);
+void adjust_time_range(struct st_mysql_time *, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);
@@ -107,8 +178,8 @@ void my_init_time(void);
     estimate.
 
   RETURN VALUES
-    FALSE   The value seems sane
-    TRUE    The MYSQL_TIME value is definitely out of range
+    TRUE    The value seems sane
+    FALSE   The MYSQL_TIME value is definitely out of range
 */
 
 static inline my_bool validate_timestamp_range(const MYSQL_TIME *t)
@@ -126,6 +197,8 @@ my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
                   my_bool *in_dst_time_gap);
 
 void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
+void set_max_time(MYSQL_TIME *tm, my_bool neg);
+void set_max_hhmmss(MYSQL_TIME *tm);
 
 /*
   Required buffer length for my_time_to_str, my_date_to_str,
@@ -137,10 +210,12 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
 */
 #define MAX_DATE_STRING_REP_LENGTH 30
 
-int my_time_to_str(const MYSQL_TIME *l_time, char *to);
+int my_time_to_str(const MYSQL_TIME *l_time, char *to, uint dec);
 int my_date_to_str(const MYSQL_TIME *l_time, char *to);
-int my_datetime_to_str(const MYSQL_TIME *l_time, char *to);
-int my_TIME_to_str(const MYSQL_TIME *l_time, char *to);
+int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, uint dec);
+int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint dec);
+
+int my_timeval_to_str(const struct timeval *tm, char *to, uint dec);
 
 /* 
   Available interval types used in any statement.

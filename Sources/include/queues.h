@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Code for generell handling of priority Queues.
@@ -22,6 +22,9 @@
 
 #ifndef _queues_h
 #define _queues_h
+
+#include "my_global.h"                          /* uchar */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -41,6 +44,7 @@ typedef struct st_queue {
 #define queue_element(queue,index) ((queue)->root[index+1])
 #define queue_end(queue) ((queue)->root[(queue)->elements])
 #define queue_replaced(queue) _downheap(queue,1)
+#define queue_set_compare(queue, cmp) (queue)->compare= cmp
 #define queue_set_cmp_arg(queue, set_arg) (queue)->first_cmp_arg= set_arg
 #define queue_set_max_at_top(queue, set_arg) \
   (queue)->max_at_top= set_arg ? -1 : 1

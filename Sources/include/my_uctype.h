@@ -1,4 +1,8 @@
-/* Copyright (C) 2006 MySQL AB
+#ifndef MY_UCTYPE_INCLUDED
+#define MY_UCTYPE_INCLUDED
+
+/* Copyright (c) 2006 MySQL AB, 2009 Sun Microsystems, Inc.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1477,3 +1481,4 @@ MY_UNI_CTYPE my_uni_ctype[256]={
 };
 
 
+#endif /* MY_UCTYPE_INCLUDED */
